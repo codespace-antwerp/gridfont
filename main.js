@@ -9,20 +9,19 @@
 // $ : vol, breedte variabel, hoogte variabel
 
 // leeg: .,?;
-const white = ['.', ',', '?', ';']
+const white = [".", ",", "?", ";"];
 // vol: @#!$
-const black = ['@', '#', '!', '$'];
+const black = ["@", "#", "!", "$"];
 // breedte constant: .?@!
-const constantWidth = ['.', '?', '@', '!'];
+const constantWidth = [".", "?", "@", "!"];
 // breedte variabel: ,;#$
-const variableWidth = [',', ';', '#', '$'];
+const variableWidth = [",", ";", "#", "$"];
 // hoogte constant: .,@#
-const constantHeight = ['.', ',', '@', '#'];
+const constantHeight = [".", ",", "@", "#"];
 // hoogte variabel: ?;!$
-const variableHeight = ['?', ';', '!', '$'];
+const variableHeight = ["?", ";", "!", "$"];
 
-const glyphText = 
-`A
+const glyphText = `A
 .,@,.
 .#.#.
 @,.,@
@@ -288,7 +287,26 @@ const GLYPH_MAP = {};
 
 const glyphUpperRight = {};
 
-const SHAPE_TYPES = ["rect", "ellipse"];
+const SHAPE_TYPES = [
+  "rect",
+  "roundedrect",
+  "ellipse",
+  "cross",
+  "diamond",
+  "plusCross",
+];
+
+const CHAR_TO_SHAPE_MAP = {
+  ".": null,
+  ",": null,
+  "?": null,
+  ";": null,
+  "@": "rect",
+  "#": "rect",
+  "!": "rect",
+  $: "rect",
+};
+
 let currentShapeIndex = 0;
 
 //functie om Glyphmap op te laden
@@ -313,6 +331,7 @@ function createRect(svg, x, y, width, height, fill) {
   rect.setAttribute("height", height);
   rect.setAttribute("fill", fill);
   svg.appendChild(rect);
+  return rect;
 }
 
 //functie om ellips te creeeren die kan worden gebruikt in Glyphs
@@ -327,6 +346,7 @@ function createEllipse(svg, x, y, width, height, fill) {
   ellipse.setAttribute("ry", height / 2);
   ellipse.setAttribute("fill", fill);
   svg.appendChild(ellipse);
+  return ellipse;
 }
 
 function createCross(svg, x, y, width, height, strokeWidth, stroke) {
@@ -351,6 +371,7 @@ function createCross(svg, x, y, width, height, strokeWidth, stroke) {
   group.appendChild(line2);
 
   svg.appendChild(group);
+  return group;
 }
 
 function createRoundedRect(svg, x, y, width, height, rx, ry, fill) {
@@ -363,14 +384,21 @@ function createRoundedRect(svg, x, y, width, height, rx, ry, fill) {
   rect.setAttribute("ry", ry);
   rect.setAttribute("fill", fill);
   svg.appendChild(rect);
+  return rect;
 }
 
 function createDiamond(svg, x, y, width, height, fill) {
-  const diamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  const points = `${x + width / 2},${y} ${x + width},${y + height / 2} ${x + width / 2},${y + height} ${x},${y + height / 2}`;
+  const diamond = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "polygon"
+  );
+  const points = `${x + width / 2},${y} ${x + width},${y + height / 2} ${
+    x + width / 2
+  },${y + height} ${x},${y + height / 2}`;
   diamond.setAttribute("points", points);
   diamond.setAttribute("fill", fill);
   svg.appendChild(diamond);
+  return diamond;
 }
 
 function createPlusCross(svg, x, y, width, height, strokeWidth, stroke) {
@@ -395,6 +423,7 @@ function createPlusCross(svg, x, y, width, height, strokeWidth, stroke) {
   group.appendChild(line2);
 
   svg.appendChild(group);
+  return group;
 }
 
 //standaard maten, wanneer ze niet uitgerokken zijn
@@ -403,28 +432,26 @@ let blockHeight = 15;
 let letterSpacing = 25;
 let letterSpacing2 = 30;
 
-function changeShapeType(glyphIndex, glyphName) {
-  const shapeIndex = (currentShapeIndex + 1) % SHAPE_TYPES.length;
-  const shapeType = SHAPE_TYPES[shapeIndex];
-  currentShapeIndex = shapeIndex;
-  const glyphElement = document.getElementById(`glyph-${glyphIndex}`);
-  const shapes = glyphElement.querySelectorAll("rect, ellipse");
-  shapes.forEach((shape) => {
-    glyphElement.removeChild(shape);
-  });
-  drawGlyph(glyphIndex, glyphName, 0, 0, shapeType);
+function changeShapeType(char) {
+  const oldShape = CHAR_TO_SHAPE_MAP[char];
+  const oldShapeIndex = SHAPE_TYPES.indexOf(oldShape);
+  const newShapeIndex = (oldShapeIndex + 1) % SHAPE_TYPES.length;
+  const newShape = SHAPE_TYPES[newShapeIndex];
+  CHAR_TO_SHAPE_MAP[char] = newShape;
+  drawText();
 }
 
-
 //functie om glyph te tekenen
-function drawGlyph(glyphIndex, glyphName, x, y, shapeType = "rect") {
+function drawGlyph(glyphIndex, glyphName, x, y) {
   const glyph = GLYPH_MAP[glyphName];
-  const glyphElement = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const glyphElement = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "g"
+  );
   glyphElement.setAttribute("id", `glyph-${glyphIndex}`);
   glyphElement.setAttribute("transform", `translate(${x},${y})`);
   let previousRight, previousEnd;
   let left, top, width, height, shape, color;
-
 
   previousEnd = 0;
   for (let row = 0; row < glyph.length; row++) {
@@ -437,7 +464,6 @@ function drawGlyph(glyphIndex, glyphName, x, y, shapeType = "rect") {
       left = previousRight;
       top = previousEnd;
 
-      shape = shapeType;
       if (constantWidth.includes(char)) {
         width = 15;
       } else {
@@ -451,42 +477,74 @@ function drawGlyph(glyphIndex, glyphName, x, y, shapeType = "rect") {
       }
 
       if (white.includes(char)) {
-        color = 'white';
-        shape = 'rect';
+        color = "white";
+        shape = "rect";
       } else {
-        color = 'black';
+        color = "black";
       }
 
       previousRight = left + width;
 
-      if (shape === "rect" || color === "white") {
-        createRect(glyphElement, left, top, width, height, color);
-      } else if (shape === "roundedrect") {
-        createRoundedRect(glyphElement, left, top, width, height, 10, 10, color);
-      } else if (shape === "ellipse") {
-        createEllipse(glyphElement, left, top, width, height, color);
-      } else if (shape === "cross") {
-        createCross(glyphElement, left, top, width, height, 2.5, color);
-      } else if (shape === "diamond") {
-        createDiamond(glyphElement, left, top, width, height, color);
-      } else if (shape === "plusCross") {
-        createPlusCross(glyphElement, left, top, width, height, 7, color);
+      shape = CHAR_TO_SHAPE_MAP[char];
+      if (!shape) {
+        continue;
       }
+
+      let element;
+      if (shape === "rect" && color === "black") {
+        element = createRect(glyphElement, left, top, width, height, color);
+      } else if (shape === "roundedrect") {
+        element = createRoundedRect(
+          glyphElement,
+          left,
+          top,
+          width,
+          height,
+          10,
+          10,
+          color
+        );
+      } else if (shape === "ellipse") {
+        element = createEllipse(glyphElement, left, top, width, height, color);
+      } else if (shape === "cross") {
+        element = createCross(
+          glyphElement,
+          left,
+          top,
+          width,
+          height,
+          2.5,
+          color
+        );
+      } else if (shape === "diamond") {
+        element = createDiamond(glyphElement, left, top, width, height, color);
+      } else if (shape === "plusCross") {
+        element = createPlusCross(
+          glyphElement,
+          left,
+          top,
+          width,
+          height,
+          7,
+          color
+        );
+      } else {
+        console.warn(`Unknown shape ${shape}`);
+      }
+
+      // Eventlistener toevoegen aan glyphelement
+      element.addEventListener("click", () => {
+        changeShapeType(char);
+      });
     }
 
     previousEnd = top + height;
   }
 
-  // Eventlistener toevoegen aan glyphelement
-  glyphElement.addEventListener("click", () => {
-    changeShapeType(glyphIndex, glyphName);
-  });
-
   // Glyphelement toevoegen aan de SVG
   svg.appendChild(glyphElement);
 }
- // end of row loop
-
+// end of row loop
 
 function drawText() {
   const glyphsPerRow = 6;
@@ -501,7 +559,7 @@ function drawText() {
     // 2 variable width, 3 fixed width
     x = col * (blockWidth * 2 + 3 * 15 + letterSpacing);
     // 1 variable height, 7 fixed height
-    y = row * (blockHeight + 7 * 15 + letterSpacing2); 
+    y = row * (blockHeight + 7 * 15 + letterSpacing2);
     const char = text[i];
     drawGlyph(i, char, x, y);
   }
@@ -520,9 +578,9 @@ document
     drawText();
   });
 
-const widthRangeInput = document.querySelector("#slider-block-width");  
+const widthRangeInput = document.querySelector("#slider-block-width");
 widthRangeInput.value = blockWidth;
 widthRangeInput.addEventListener("input", (e) => {
-    blockWidth = Number(e.target.value);
-    drawText();
-  }); 
+  blockWidth = Number(e.target.value);
+  drawText();
+});
